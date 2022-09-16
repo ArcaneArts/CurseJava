@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="art.arcane.curse.Tests" tests="1" skipped="0" failures="0" errors="0" timestamp="2022-09-16T06:22:52" hostname="DESKTOP-64C0S06" time="0.016">
+  <properties/>
+  <testcase name="test()" classname="art.arcane.curse.Tests" time="0.016"/>
+  <system-out><![CDATA[Read: false
+--------------------
+Nonreflect READ: false
+Reflective Read: true
+Nonreflect READ: false
+Nonreflect READ: false
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
