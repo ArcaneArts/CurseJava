@@ -9,7 +9,7 @@
 ![](https://img.shields.io/github/v/release/ArcaneArts/Curse?color=%236f24f0&display_name=tag&label=Curse&sort=semver&style=for-the-badge)
 
 ## Get It
-
+ 
 ```groovy
 maven { url "https://arcanearts.jfrog.io/artifactory/archives" }
 ```
