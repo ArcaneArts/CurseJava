@@ -28,8 +28,8 @@ jobs:
       - name: Validate Gradle wrapper
         uses: gradle/wrapper-validation-action@e6e38bacfdf1a337459f332974bb2327a31aaf4b
       - name: Publish Package
-        run: gradle publish
+        run: gradle build artifactoryPublish
         env:
-          CLOUDSMITH_USERNAME: ${{ secrets.CLOUDSMITH_USERNAME }}
-          CLOUDSMITH_PASSWORD: ${{ secrets.CLOUDSMITH_PASSWORD }}
-          CLOUDSMITH_VERSION: ${{ env.release_tag }}
+          JFROG_USERNAME: ${{ secrets.JFROG_USERNAME }}
+          JFROG_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
+          JFROG_VERSION: ${{ env.release_tag }}
