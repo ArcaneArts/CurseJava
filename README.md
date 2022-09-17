@@ -1,6 +1,6 @@
 # Curse
 
-"It's right there! I can literally see it, I can read it, why can't I change it?"
+"It's right there! I can literally see it, I can read it, why the hell can't I change it?"
 
 "Why the fuck did they make this final?"
 
