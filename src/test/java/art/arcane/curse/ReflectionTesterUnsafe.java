@@ -1,6 +1,6 @@
 package art.arcane.curse;
 
-public class ReflectionTester {
+public class ReflectionTesterUnsafe {
     private final boolean a = false;
     private boolean b = false;
     private static final boolean A = false;
@@ -12,14 +12,6 @@ public class ReflectionTester {
 
     public boolean getA() {
         return a;
-    }
-
-    public void setThing(boolean b) {
-        this.b = b;
-    }
-
-    public boolean getThing() {
-        return b;
     }
 
     public boolean getB() {

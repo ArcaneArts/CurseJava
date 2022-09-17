@@ -1,6 +1,5 @@
 package art.arcane.curse.model;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.experimental.Accessors;
 

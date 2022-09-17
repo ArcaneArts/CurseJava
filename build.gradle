@@ -1,14 +1,19 @@
 plugins {
     id 'java'
     id "io.freefair.lombok" version "6.3.0"
+    id 'maven-publish'
+    id 'com.jfrog.artifactory' version '4.29.0'
 }
 
 group 'art.arcane'
-version '1.0-SNAPSHOT'
+version System.getenv("JFROG_VERSION") ?: '1.0.0'
 
 repositories {
+    mavenLocal()
+    maven { url "https://arcanearts.jfrog.io/artifactory/archives" }
     mavenCentral()
 }
+
 
 dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
@@ -17,4 +22,35 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+artifactory {
+    publish {
+        contextUrl = 'https://arcanearts.jfrog.io/artifactory'
+        repository {
+            repoKey = 'arcane'
+            username = System.getenv("JFROG_USERNAME")
+            password = System.getenv("JFROG_PASSWORD")
+        }
+        defaults {
+            publications ('mavenJava')
+            publishConfigs('archives', 'published')
+            publishBuildInfo = true
+            publishArtifacts = true
+            publishPom = true
+        }
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url = "https://arcanearts.jfrog.io/artifactory/arcane"
+        }
+    }
 }
