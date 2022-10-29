@@ -15,6 +15,11 @@ public class CursedMember {
         this.member = member;
     }
 
+    public Member getMember()
+    {
+        return member;
+    }
+
     public boolean isStatic() {
         return Modifier.isStatic(member.getModifiers());
     }

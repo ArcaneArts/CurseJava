@@ -9,6 +9,7 @@ import art.arcane.curse.util.JarLoader;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -89,6 +90,14 @@ public class Curse {
     public static Stream<CursedComponent> annotated(Class<?> sourceJarClass, Class<? extends Annotation> annotation) {
         try {
             return new JarLoader(sourceJarClass).all().filter(i -> i.isAnnotationPresent(annotation)).map(Curse::on);
+        } catch(IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static Stream<CursedComponent> annotatedName(Class<?> sourceJarClass, String annotation) {
+        try {
+            return new JarLoader(sourceJarClass).all().filter(i -> Arrays.stream(i.getDeclaredAnnotations()).anyMatch(f -> f.getClass().getSimpleName().equals(annotation))).map(Curse::on);
         } catch(IOException e) {
             throw new RuntimeException(e);
         }
