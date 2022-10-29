@@ -71,7 +71,7 @@ public class JarLoader {
     @SuppressWarnings("Convert2MethodRef")
     public JarLoader(Class<?>... baseClasses) throws IOException {
         this(Arrays.stream(baseClasses)
-                .map(i -> i.getProtectionDomain().getCodeSource().getLocation().getFile())
+                .map(i -> new File(i.getProtectionDomain().getCodeSource().getLocation().getFile()))
                 .toArray(File[]::new));
     }
 
