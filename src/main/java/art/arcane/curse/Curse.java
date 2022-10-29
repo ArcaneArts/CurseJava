@@ -160,7 +160,21 @@ public class Curse {
      */
     public static Stream<CursedComponent> annotatedName(Class<?> sourceJarClass, String annotation) {
         try {
-            return new JarLoader(sourceJarClass).all().filter(i -> Arrays.stream(i.getDeclaredAnnotations()).anyMatch(f -> f.annotationType().getSimpleName().equals(annotation))).map(Curse::on);
+            return new JarLoader(sourceJarClass).all().filter(i -> {
+                for(Annotation a : i.getDeclaredAnnotations()) {
+                    if(a.annotationType().getSimpleName().equals(annotation)) {
+                        return true;
+                    }
+                }
+
+                for(Annotation a : i.getAnnotations()) {
+                    if(a.annotationType().getSimpleName().equals(annotation)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }).map(Curse::on);
         } catch(IOException e) {
             throw new RuntimeException(e);
         }

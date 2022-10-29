@@ -2,6 +2,7 @@ package art.arcane.curse.model;
 
 import java.lang.reflect.Method;
 
+@Deprecated
 public class CursedMethod extends CursedExecutable {
     private final Method method;
 
