@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -77,7 +78,8 @@ public class JarLoader {
 
     public Stream<Class<?>> all() {
         return classCache.keySet().parallelStream()
-                .map(i -> classCache.get(i).get());
+                .map(i -> classCache.get(i).get())
+            .filter(Objects::nonNull).map(i -> (Class<?>) i);
     }
 
     public Stream<Class<?>> all(Class<?> superType) {
@@ -89,6 +91,7 @@ public class JarLoader {
         return classCache.keySet().parallelStream()
                 .filter(i -> i.startsWith(superPackage))
                 .map(i -> classCache.get(i).get())
+            .filter(Objects::nonNull).map(i -> (Class<?>) i)
                 .filter(i -> !i.equals(superType))
                 .filter(superType::isAssignableFrom)
                 .map(i -> (Class<?>) i);
@@ -100,6 +103,7 @@ public class JarLoader {
                         && removeLast(splitAbs(i, "."))
                         .equals(splitAbs(superPackage, ".")))
                 .map(i -> classCache.get(i).get())
+            .filter(Objects::nonNull).map(i -> (Class<?>) i)
                 .filter(i -> !i.equals(superType))
                 .filter(superType::isAssignableFrom)
                 .map(i -> (Class<?>) i);
@@ -108,7 +112,8 @@ public class JarLoader {
     public Stream<Class<?>> inPackageNested(String superPackage) {
         return classCache.keySet().parallelStream()
                 .filter(i -> i.startsWith(superPackage))
-                .map(i -> classCache.get(i).get());
+                .map(i -> classCache.get(i).get())
+            .filter(Objects::nonNull).map(i -> (Class<?>) i);
     }
 
     public Stream<Class<?>> inPackageSpecifically(String superPackage) {
@@ -116,7 +121,8 @@ public class JarLoader {
                 .filter(i -> i.startsWith(superPackage)
                         && removeLast(splitAbs(i, "."))
                         .equals(splitAbs(superPackage, ".")))
-                .map(i -> classCache.get(i).get());
+                .map(i -> classCache.get(i).get())
+            .filter(Objects::nonNull).map(i -> (Class<?>) i);
     }
 
     private List<String> splitAbs(String s, String find) {
