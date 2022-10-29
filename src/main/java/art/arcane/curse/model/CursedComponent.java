@@ -20,24 +20,47 @@ import java.util.stream.Stream;
 public class CursedComponent {
     private final CursedContext context;
 
+    /**
+     * Retype a component to a new class
+     * @param clazz the new class
+     * @return itself
+     */
     public CursedComponent type(Class<?> clazz) {
         context.type(clazz);
         return this;
     }
 
+    /**
+     * Assign an instance to this component
+     * @param instance the instance
+     * @return itself
+     */
     public CursedComponent instance(Object instance) {
         context.instance(instance);
         return this;
     }
 
+    /**
+     * Get the instance of this component
+     * @return the instance
+     */
     public <T> T instance() {
         return (T) context.instance();
     }
 
+    /**
+     * Get the class of this component
+     * @return the class
+     */
     public Class<?> type() {
         return context.type();
     }
 
+    /**
+     * Create a new instance of this component class WITHOUT CALLING ITS CONSTRUCTOR
+     * This is dangerous but sometimes useful, just make sure to define the final fields after initialization...
+     * @return the new instance wrapped in a cursed component
+     */
     public CursedComponent make() {
         try {
             return Curse.on(type()).instance(unsafe().allocateInstance(type()));
@@ -56,6 +79,11 @@ public class CursedComponent {
         }
     }
 
+    /**
+     * Properly call the object's constructor
+     * @param args the arguments
+     * @return a cursed component of the new instance
+     */
     public CursedComponent construct(Object... args) {
         List<Constructor<?>> c = getConstructors(context.type()).filter(i -> i.getParameterCount() == args.length).toList();
 
