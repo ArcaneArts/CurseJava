@@ -5,6 +5,7 @@ import lombok.experimental.Accessors;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.concurrent.TimeUnit;
 
 @Accessors(chain = true, fluent = true)
 public class CursedField extends CursedMember {
