@@ -1,5 +1,6 @@
 package art.arcane.curse;
 
+import art.arcane.curse.model.CursedField;
 import art.arcane.curse.model.FuzzyMethod;
 import art.arcane.curse.util.poet.*;
 import com.sun.tools.attach.*;
@@ -14,6 +15,16 @@ import java.security.CodeSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class Tests {
+    @Test
+    public void testDecompiler() throws Throwable {
+        String src = Curse.decompile(ReflectionTester.class)
+                .replace("package art.arcane.curse;", "package art.arcane.curse.gen;")
+                .replace("Nonreflect READ", "Woop");
+        System.out.println(src);
+        Curse.on(Curse.compile("art.arcane.curse.gen.ReflectionTester", src))
+                .construct().method("print").invoke();
+    }
+
     @Test
     public void testCompiler() throws Throwable {
         Curse.on(Curse.compile("test.TestCurseCompile", """

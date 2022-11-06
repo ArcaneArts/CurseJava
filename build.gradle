@@ -19,6 +19,9 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
     implementation 'org.zeroturnaround:zt-zip:1.15'
+    implementation 'org.bitbucket.mstrobel:procyon-core:0.6.0'
+    implementation 'org.bitbucket.mstrobel:procyon-compilertools:0.6.0'
+    implementation 'org.bitbucket.mstrobel:procyon-reflection:0.6.0'
 }
 
 test {

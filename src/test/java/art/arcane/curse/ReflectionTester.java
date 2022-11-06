@@ -26,16 +26,6 @@ public class ReflectionTester {
         return b;
     }
 
-    public static String repeat(String t, int c) {
-        StringBuilder s = new StringBuilder();
-
-        for(int i = 0; i < c; i++) {
-            s.append(t);
-        }
-
-        return s.toString();
-    }
-
     public static boolean getStaticA() {
         return A;
     }

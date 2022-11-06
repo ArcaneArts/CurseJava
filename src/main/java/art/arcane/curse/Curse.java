@@ -3,13 +3,19 @@ package art.arcane.curse;
 import art.arcane.curse.model.*;
 import art.arcane.curse.util.JarLoader;
 import art.arcane.curse.util.poet.JavaFile;
+import com.strobel.decompiler.Decompiler;
+import com.strobel.decompiler.DecompilerSettings;
+import com.strobel.decompiler.PlainTextOutput;
+import sun.misc.Unsafe;
 
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.channels.Channels;
@@ -39,6 +45,83 @@ public class Curse {
                     .map(i -> Curse.on(i).method(name, parameters));
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    public static void stop(Thread thread) {
+        thread.interrupt();
+        thread.suspend();
+        thread.stop();
+    }
+
+    public static void resume(Thread thread) {
+        thread.resume();
+    }
+
+    public static void pause(Thread thread) {
+        thread.suspend();
+    }
+
+    /**
+     * You get unsafe! She gets unsafe! He gets unsafe! Everybody gets unsafe!
+     * @return things you want but can never have.
+     */
+    public static Unsafe unsafe() {
+        try {
+            Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+            unsafeField.setAccessible(true);
+            return (Unsafe) unsafeField.get(null);
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Unpark a thread unsafely
+     * @param thread the thread to wake up
+     */
+    public static void unpark(Thread thread) {
+        unsafe().unpark(thread);
+    }
+
+    /**
+     * Park the current thread for an amount of time. If the time is less than 999ms the decimal
+     * accuracy is used by converting to nanoseconds. from the double ms
+     * @param milliseconds the milliseconds to park the thread for.
+     */
+    public static void park(double milliseconds) {
+        if(milliseconds == 0) {
+            unsafe().park(true, 0);
+        }
+
+        else if(milliseconds > 999 || (double)((long)milliseconds) == milliseconds) {
+            unsafe().park(true, System.currentTimeMillis() + (long) milliseconds);
+        }
+
+        else {
+            long m = (long) (milliseconds * 1000000D);
+            unsafe().park(false, m);
+        }
+    }
+
+    /**
+     * Decompile a class into source code (string)
+     * @param clazz the class to decompile
+     * @return the source code or an error message
+     */
+    public static String decompile(Class<?> clazz) {
+        try {
+            if(clazz.getCanonicalName() == null) {
+                return "err: null canonical";
+            }
+
+            StringWriter s = new StringWriter();
+            Decompiler.decompile(clazz.getCanonicalName().replaceAll("\\Q.\\E", "/"), new PlainTextOutput(s), DecompilerSettings.javaDefaults());
+            return s.toString();
+        }
+
+        catch(Throwable ignored) {
+            return "err: " + ignored.getClass().getCanonicalName() + " " + ignored.getMessage();
         }
     }
 
@@ -105,6 +188,13 @@ public class Curse {
         }
     }
 
+    /**
+     * Try to load a class. If it cannot be found, download and inject a dependency from the repository supplied then load the class.
+     * @param canonical the canonical class name
+     * @param dependency the dependency such as org.something:name:version
+     * @param repository the repository such as maven central https://repo1.maven.org/maven2
+     * @return the class
+     */
     public static Class<?> loadOrInstallClass(String canonical, String dependency, String repository) {
         try {
             return Class.forName(canonical);
@@ -113,6 +203,12 @@ public class Curse {
         }
     }
 
+    /**
+     * Install a dependency onto the vm
+     * @param dependency the dependency such as org:something:name:version
+     * @param repository the repository such as https://repo1.maven.org/maven2
+     * @return the stream of classes in the jar
+     */
     public static Stream<Class<?>> installDependency(String dependency, String repository) {
         try {
             File file = downloadCachedFile(getJarDependencyUrl(dependency, repository), "jar").get();
@@ -122,6 +218,12 @@ public class Curse {
         }
     }
 
+    /**
+     * Get the dependency jar download
+     * @param dependency the dependency
+     * @param repository the repo
+     * @return the string url
+     */
     public static String getJarDependencyUrl(String dependency, String repository) {
         //org.zeroturnaround:zt-zip:1.15
         //https://repo1.maven.org/maven2/org/zeroturnaround/zt-zip/1.15/zt-zip-1.15.jar
@@ -129,6 +231,12 @@ public class Curse {
         return repository + "/" + c[0].replaceAll("\\Q.\\E", "/") + "/" + c[1] + "/" + c[2] + "/" + c[1] + "-" + c[2] + ".jar";
     }
 
+    /**
+     * Download a file if it isnt in the temp cache
+     * @param url the url
+     * @param ext the extension of the file
+     * @return the file future
+     */
     public static Future<File> downloadCachedFile(String url, String ext) {
         File f = temp("dlc", UUID.nameUUIDFromBytes(url.getBytes(StandardCharsets.UTF_8)) + "." + ext);
 
@@ -139,6 +247,12 @@ public class Curse {
         return downloadFile(url, f);
     }
 
+    /**
+     * Download a file
+     * @param url the url
+     * @param file the file
+     * @return the file future
+     */
     public static Future<File> downloadFile(String url, File file) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -154,10 +268,34 @@ public class Curse {
         });
     }
 
+    /**
+     * Compile source code into a class file and load it into the vm
+     * @param file the file
+     * @return the class file
+     * @throws Throwable programming is hard
+     */
     public static Class<?> compile(JavaFile file) throws Throwable {
         return compile(file.packageName + "." + file.typeSpec.name, file.toString());
     }
 
+    /**
+     * Search all classes in the jar the provided basejar class resides in, decompile everything and search the source for a string
+     * @param baseJar the class origin
+     * @param sourceCodeSnippet the snippet to find
+     * @return the stream of classes that match
+     */
+    public static Stream<Class<?>> containingSource(Class<?> baseJar, String sourceCodeSnippet) {
+        return all(baseJar).map(i -> i.type())
+                .filter(i -> decompile(i).contains(sourceCodeSnippet)).map(i -> (Class<?>) i);
+    }
+
+    /**
+     * Compile source code into a class file and load it into the vm
+     * @param canonicalName the canonical name
+     * @param sourceCode the source code
+     * @return the class
+     * @throws Throwable programming is hard
+     */
     public static Class<?> compile(String canonicalName, String sourceCode) throws Throwable {
         File sourceFolder = temp("compile", UUID.randomUUID().toString(), "src");
         File sourceFile = new File(sourceFolder, canonicalName.replaceAll("\\Q.\\E", "/") + ".java");
@@ -177,14 +315,10 @@ public class Curse {
      */
     public static Stream<CursedComponent> all(Class<?> sourceJarClass) {
         try {
-            return new JarLoader(sourceJarClass).all().map(Curse::on);
+            return new JarLoader(sourceJarClass).all().filter(Objects::nonNull).map(Curse::on);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public static boolean isCollectionOrMap(Class<?> c) {
-        return c.isAssignableFrom(Collection.class) || c.isAssignableFrom(Map.class) || c.isArray();
     }
 
     /**
