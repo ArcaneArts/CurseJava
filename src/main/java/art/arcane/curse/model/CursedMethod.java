@@ -2,7 +2,6 @@ package art.arcane.curse.model;
 
 import java.lang.reflect.Method;
 
-@Deprecated
 public class CursedMethod extends CursedExecutable {
     private final Method method;
 
@@ -15,7 +14,7 @@ public class CursedMethod extends CursedExecutable {
         try {
             method.setAccessible(true);
             return (T) method.invoke(context.instance(), args);
-        } catch(Throwable e) {
+        } catch (Throwable e) {
             throw new RuntimeException(e);
         }
     }

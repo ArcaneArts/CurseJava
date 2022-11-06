@@ -14,7 +14,7 @@ public class CursedConstructor extends CursedExecutable {
         try {
             constructor.setAccessible(true);
             return (T) constructor.newInstance(args);
-        } catch(Throwable e) {
+        } catch (Throwable e) {
             throw new RuntimeException(e);
         }
     }

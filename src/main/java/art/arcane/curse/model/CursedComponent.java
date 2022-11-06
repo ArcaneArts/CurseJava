@@ -9,6 +9,7 @@ import sun.misc.Unsafe;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +23,7 @@ public class CursedComponent {
 
     /**
      * Retype a component to a new class
+     *
      * @param clazz the new class
      * @return itself
      */
@@ -32,6 +34,7 @@ public class CursedComponent {
 
     /**
      * Assign an instance to this component
+     *
      * @param instance the instance
      * @return itself
      */
@@ -42,6 +45,7 @@ public class CursedComponent {
 
     /**
      * Get the instance of this component
+     *
      * @return the instance
      */
     public <T> T instance() {
@@ -50,6 +54,7 @@ public class CursedComponent {
 
     /**
      * Get the class of this component
+     *
      * @return the class
      */
     public Class<?> type() {
@@ -59,12 +64,13 @@ public class CursedComponent {
     /**
      * Create a new instance of this component class WITHOUT CALLING ITS CONSTRUCTOR
      * This is dangerous but sometimes useful, just make sure to define the final fields after initialization...
+     *
      * @return the new instance wrapped in a cursed component
      */
     public CursedComponent make() {
         try {
             return Curse.on(type()).instance(unsafe().allocateInstance(type()));
-        } catch(InstantiationException e) {
+        } catch (InstantiationException e) {
             throw new RuntimeException(e);
         }
     }
@@ -74,23 +80,24 @@ public class CursedComponent {
             Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
             unsafeField.setAccessible(true);
             return (Unsafe) unsafeField.get(null);
-        } catch(Throwable e) {
+        } catch (Throwable e) {
             throw new RuntimeException(e);
         }
     }
 
     /**
      * Properly call the object's constructor
+     *
      * @param args the arguments
      * @return a cursed component of the new instance
      */
     public CursedComponent construct(Object... args) {
         List<Constructor<?>> c = getConstructors(context.type()).filter(i -> i.getParameterCount() == args.length).toList();
 
-        for(Constructor<?> i : c) {
+        for (Constructor<?> i : c) {
             try {
                 return Curse.on(i.newInstance(args));
-            } catch(Throwable ignored) {
+            } catch (Throwable ignored) {
 
             }
         }
@@ -98,16 +105,55 @@ public class CursedComponent {
         throw new RuntimeException("No constructor found for " + context.type() + " with args (" + Arrays.deepToString(args) + ")");
     }
 
+    public Stream<CursedField> fields() {
+        return getFields(getClass()).map(i -> new CursedField(context(), i));
+    }
+
+    public Stream<CursedField> instanceFields() {
+        return fields().filter(i -> !Modifier.isStatic(i.getMember().getModifiers()));
+    }
+
+    public Stream<CursedField> staticFields() {
+        return fields().filter(i -> Modifier.isStatic(i.getMember().getModifiers()));
+    }
+
+    public Optional<CursedMethod> fuzz(FuzzyMethod invocation) {
+        return getMethods(type())
+                .filter(i -> invocation.isStaticMethod() == Modifier.isStatic(i.getModifiers()))
+                .filter(i -> invocation.getReturns().equals(i.getReturnType()))
+                .filter(i -> (invocation.getPossibleNames() == null || !invocation.getPossibleNames().isEmpty()) || invocation.getPossibleNames().contains(i.getName()))
+                .filter(i -> {
+                    if (((invocation.getParameters() == null || invocation.getParameters().isEmpty()) && i.getParameterCount() == 0)) {
+                        return true;
+                    }
+
+                    if (invocation.getParameters() != null && i.getParameterCount() == invocation.getParameters().size()) {
+                        for (int jj = 0; jj < i.getParameterCount(); jj++) {
+                            Class<?> a = i.getParameterTypes()[jj];
+                            Class<?> b = invocation.getParameters().get(jj);
+
+                            if (a.isAssignableFrom(b) || b.isAssignableFrom(a)) {
+                                return true;
+                            }
+                        }
+                    }
+
+                    return false;
+                })
+                .map(i -> new CursedMethod(context(), i))
+                .findFirst();
+    }
+
     public <T> T get(String name) {
         try {
             return field(name).get();
-        } catch(Throwable ignored) {
+        } catch (Throwable ignored) {
 
         }
 
         try {
             return method("get" + capitalize(name)).invoke();
-        } catch(Throwable ignored) {
+        } catch (Throwable ignored) {
 
         }
 
@@ -116,28 +162,36 @@ public class CursedComponent {
 
     public CursedComponent set(String name, Object v) {
         try {
+            return setOrThrow(name, v);
+        } catch (Throwable e) {
+            return this;
+        }
+    }
+
+    public CursedComponent setOrThrow(String name, Object v) {
+        try {
             field(name).set(v);
             return this;
-        } catch(Throwable ignored) {
+        } catch (Throwable ignored) {
 
         }
 
         try {
             method("set" + capitalize(name), v.getClass()).invoke(v);
             return this;
-        } catch(Throwable ignored) {
+        } catch (Throwable ignored) {
         }
 
         try {
             getMethods(context().type()).filter(i -> i.getName().equals("set" + capitalize(name))).findFirst().ifPresent(i -> {
                 try {
                     i.invoke(context().instance(), v);
-                } catch(Throwable e) {
+                } catch (Throwable e) {
                     throw new RuntimeException(e);
                 }
             });
             return this;
-        } catch(Throwable ignored) {
+        } catch (Throwable ignored) {
         }
 
         throw new RuntimeException("No such field or setter: " + name + " or set" + capitalize(name) + "(" + v.getClass() + "). Also searched for any setter with any parameter type. If you are trying to set an object through a setter which does not have the same exact parameter type as your value, use set(name, value, type) instead.");
@@ -147,14 +201,14 @@ public class CursedComponent {
         try {
             field(name).set(v);
             return this;
-        } catch(Throwable ignored) {
+        } catch (Throwable ignored) {
 
         }
 
         try {
             method("set" + capitalize(name), type).invoke(v);
             return this;
-        } catch(Throwable ignored) {
+        } catch (Throwable ignored) {
 
         }
 
@@ -167,27 +221,27 @@ public class CursedComponent {
 
     public CursedField field(Class<?> type) {
         return getFields(context().type()).filter((i) -> i.getType().equals(type)).findFirst().map(i -> field(i.getName()))
-            .orElseThrow(() -> new RuntimeException("No field of type " + type + " in " + context.type()));
+                .orElseThrow(() -> new RuntimeException("No field of type " + type + " in " + context.type()));
     }
 
     public CursedMethod methodReturning(Class<?> type) {
         return getMethods(context().type()).filter((i) -> i.getReturnType().equals(type)).findFirst().map(i -> method(i.getName(), i.getParameterTypes()))
-            .orElseThrow(() -> new RuntimeException("No method returning type " + type + " in " + context.type()));
+                .orElseThrow(() -> new RuntimeException("No method returning type " + type + " in " + context.type()));
     }
 
     public CursedMethod methodReturningArgs(Class<?> type, Class<?>... args) {
         return getMethods(context().type())
-            .filter((i) -> i.getReturnType().equals(type))
-            .filter((i) -> Arrays.equals(i.getParameterTypes(), args))
-            .findFirst().map(i -> method(i.getName(), i.getParameterTypes()))
-            .orElseThrow(() -> new RuntimeException("No method returning type " + type + " with args (" + Arrays.deepToString(args) + ") in " + context.type()));
+                .filter((i) -> i.getReturnType().equals(type))
+                .filter((i) -> Arrays.equals(i.getParameterTypes(), args))
+                .findFirst().map(i -> method(i.getName(), i.getParameterTypes()))
+                .orElseThrow(() -> new RuntimeException("No method returning type " + type + " with args (" + Arrays.deepToString(args) + ") in " + context.type()));
     }
 
     public CursedMethod methodArgs(Class<?>... args) {
         return getMethods(context().type())
-            .filter((i) -> Arrays.equals(i.getParameterTypes(), args))
-            .findFirst().map(i -> method(i.getName(), i.getParameterTypes()))
-            .orElseThrow(() -> new RuntimeException("No method with args (" + Arrays.deepToString(args) + ") in " + context.type()));
+                .filter((i) -> Arrays.equals(i.getParameterTypes(), args))
+                .findFirst().map(i -> method(i.getName(), i.getParameterTypes()))
+                .orElseThrow(() -> new RuntimeException("No method with args (" + Arrays.deepToString(args) + ") in " + context.type()));
     }
 
     public Optional<CursedField> optionalField(String field) {
@@ -217,9 +271,9 @@ public class CursedComponent {
     private static Field getField(Class<?> clazz, String fieldName) {
         try {
             return clazz.getDeclaredField(fieldName);
-        } catch(NoSuchFieldException | SecurityException e) {
+        } catch (NoSuchFieldException | SecurityException e) {
             Class<?> superClass = clazz.getSuperclass();
-            if(superClass == null) {
+            if (superClass == null) {
                 return null;
             } else {
                 return getField(superClass, fieldName);
@@ -230,9 +284,9 @@ public class CursedComponent {
     private static Method getMethod(Class<?> clazz, String methodName, Class<?>... args) {
         try {
             return clazz.getDeclaredMethod(methodName, args);
-        } catch(NoSuchMethodException | SecurityException e) {
+        } catch (NoSuchMethodException | SecurityException e) {
             Class<?> superClass = clazz.getSuperclass();
-            if(superClass == null) {
+            if (superClass == null) {
                 return null;
             } else {
                 return getMethod(superClass, methodName, args);
@@ -243,9 +297,9 @@ public class CursedComponent {
     private static Constructor<?> getConstructor(Class<?> clazz, Class<?>... args) {
         try {
             return clazz.getDeclaredConstructor(args);
-        } catch(NoSuchMethodException | SecurityException e) {
+        } catch (NoSuchMethodException | SecurityException e) {
             Class<?> superClass = clazz.getSuperclass();
-            if(superClass == null) {
+            if (superClass == null) {
                 return null;
             } else {
                 return getConstructor(superClass, args);
@@ -256,8 +310,8 @@ public class CursedComponent {
     private static Stream<Field> getFields(Class<?> clazz) {
         Stream.Builder<Field> fields = Stream.builder();
 
-        while(clazz != Object.class) {
-            for(Field i : clazz.getDeclaredFields()) {
+        while (clazz != Object.class) {
+            for (Field i : clazz.getDeclaredFields()) {
                 fields.add(i);
             }
 
@@ -270,8 +324,8 @@ public class CursedComponent {
     private static Stream<Method> getMethods(Class<?> clazz) {
         Stream.Builder<Method> methods = Stream.builder();
 
-        while(clazz != Object.class) {
-            for(Method i : clazz.getDeclaredMethods()) {
+        while (clazz != Object.class) {
+            for (Method i : clazz.getDeclaredMethods()) {
                 methods.add(i);
             }
 
@@ -284,8 +338,8 @@ public class CursedComponent {
     private static Stream<Constructor<?>> getConstructors(Class<?> clazz) {
         Stream.Builder<Constructor<?>> constructors = Stream.builder();
 
-        while(clazz != Object.class) {
-            for(Constructor<?> i : clazz.getDeclaredConstructors()) {
+        while (clazz != Object.class) {
+            for (Constructor<?> i : clazz.getDeclaredConstructors()) {
                 constructors.add(i);
             }
 

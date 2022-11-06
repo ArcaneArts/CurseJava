@@ -15,8 +15,7 @@ public class CursedMember {
         this.member = member;
     }
 
-    public Member getMember()
-    {
+    public Member getMember() {
         return member;
     }
 
@@ -73,7 +72,7 @@ public class CursedMember {
             Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
             unsafeField.setAccessible(true);
             return (Unsafe) unsafeField.get(null);
-        } catch(Throwable e) {
+        } catch (Throwable e) {
             throw new RuntimeException(e);
         }
     }

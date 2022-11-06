@@ -1,12 +1,62 @@
 package art.arcane.curse;
 
+import art.arcane.curse.model.FuzzyMethod;
+import art.arcane.curse.util.poet.*;
+import com.sun.tools.attach.*;
 import org.junit.jupiter.api.Test;
 
-import java.util.stream.Collectors;
+import javax.lang.model.element.Modifier;
+
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.security.CodeSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class Tests {
+    @Test
+    public void testCompiler() throws Throwable {
+        Curse.on(Curse.compile("test.TestCurseCompile", """
+                package test;
+                
+                public class TestCurseCompile implements Runnable {
+                    public void run() {
+                        System.out.println("I Run! Woo!");
+                    }
+                }
+                """)).construct().method("run").invoke();
+    }
+
+    @Test
+    public void testCompilerPoet() throws Throwable {
+        assertEquals(4, (int)Curse.on(Curse.compile(JavaFile.builder("art.arcane.curse.gen",
+                        TypeSpec.classBuilder("TestPoetCompile")
+                                .addField(FieldSpec.builder(int.class, "age", Modifier.PRIVATE, Modifier.FINAL).build())
+                                .addMethod(MethodSpec.constructorBuilder().addParameter(ParameterSpec.builder(int.class, "age").build())
+                                        .addCode(CodeBlock.builder()
+                                                .addStatement("this.age = age")
+                                                .build())
+                                        .build())
+                                .build())
+                .build())).construct(4).get("age"));
+    }
+
+    @Test
+    public void testFuzzyInvocation() {
+        assertEquals("hahaha", Curse.on(ReflectionTester.class).fuzz(FuzzyMethod.builder()
+                .staticMethod(true)
+                .returns(String.class)
+                .parameter(String.class)
+                .parameter(int.class)
+        .build()).orElseThrow().invoke("ha", 3));
+    }
+
+    @Test
+    public void testSearchNonJar()
+    {
+        assertTrue(Curse.all(Curse.class).count() > 0);
+    }
+
     @Test
     public void testInstancedGet() {
         ReflectionTester t = new ReflectionTester();

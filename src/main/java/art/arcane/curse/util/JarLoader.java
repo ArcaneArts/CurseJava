@@ -18,15 +18,14 @@
 
 package art.arcane.curse.util;
 
+import art.arcane.curse.Curse;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -39,10 +38,43 @@ public class JarLoader {
         return new JarLoader(jarClass);
     }
 
+    public static void allFiles(File folder, Consumer<File> f) {
+        if (folder.isDirectory()) {
+            for (File i : folder.listFiles()) {
+                allFiles(i, f);
+            }
+        } else {
+            f.accept(folder);
+        }
+    }
+
+
     public JarLoader(File... jarFiles) throws IOException {
+        this(Curse.class.getClassLoader(), jarFiles);
+    }
+
+    public JarLoader(ClassLoader loader, File... jarFiles) throws IOException {
         List<File> jars = new ArrayList<>(List.of(jarFiles));
 
         for (File i : jars) {
+            if (i.isDirectory()) {
+                allFiles(i, (j) -> {
+                    String jarPath = Paths.get(i.getPath()).relativize(Paths.get(j.getPath())).toString();
+                    String c = jarPath.replace(".class", "").replaceAll("\\Q" + File.separator + "\\E", ".");
+
+                    classCache.put(c, () -> {
+                        try {
+                            return Class.forName(c, true, loader);
+                        } catch (Throwable ignored) {
+
+                        }
+
+                        return null;
+                    });
+                });
+                continue;
+            }
+
             FileInputStream fin = new FileInputStream(i);
             ZipInputStream zip = new ZipInputStream(fin);
 
@@ -52,10 +84,10 @@ public class JarLoader {
                         continue;
                     }
 
-                    String c = entry.getName().replaceAll("/", ".").replace(".class", "");
+                    String c = entry.getName().replaceAll("\\Q" + File.separator + "\\E", ".").replace(".class", "");
                     classCache.put(c, () -> {
                         try {
-                            return Class.forName(c);
+                            return Class.forName(c, true, loader);
                         } catch (Throwable ignored) {
 
                         }
@@ -69,6 +101,7 @@ public class JarLoader {
         }
     }
 
+
     @SuppressWarnings("Convert2MethodRef")
     public JarLoader(Class<?>... baseClasses) throws IOException {
         this(Arrays.stream(baseClasses)
@@ -79,7 +112,7 @@ public class JarLoader {
     public Stream<Class<?>> all() {
         return classCache.keySet().parallelStream()
                 .map(i -> classCache.get(i).get())
-            .filter(Objects::nonNull).map(i -> (Class<?>) i);
+                .filter(Objects::nonNull).map(i -> (Class<?>) i);
     }
 
     public Stream<Class<?>> all(Class<?> superType) {
@@ -91,7 +124,7 @@ public class JarLoader {
         return classCache.keySet().parallelStream()
                 .filter(i -> i.startsWith(superPackage))
                 .map(i -> classCache.get(i).get())
-            .filter(Objects::nonNull).map(i -> (Class<?>) i)
+                .filter(Objects::nonNull).map(i -> (Class<?>) i)
                 .filter(i -> !i.equals(superType))
                 .filter(superType::isAssignableFrom)
                 .map(i -> (Class<?>) i);
@@ -103,7 +136,7 @@ public class JarLoader {
                         && removeLast(splitAbs(i, "."))
                         .equals(splitAbs(superPackage, ".")))
                 .map(i -> classCache.get(i).get())
-            .filter(Objects::nonNull).map(i -> (Class<?>) i)
+                .filter(Objects::nonNull).map(i -> (Class<?>) i)
                 .filter(i -> !i.equals(superType))
                 .filter(superType::isAssignableFrom)
                 .map(i -> (Class<?>) i);
@@ -113,7 +146,7 @@ public class JarLoader {
         return classCache.keySet().parallelStream()
                 .filter(i -> i.startsWith(superPackage))
                 .map(i -> classCache.get(i).get())
-            .filter(Objects::nonNull).map(i -> (Class<?>) i);
+                .filter(Objects::nonNull).map(i -> (Class<?>) i);
     }
 
     public Stream<Class<?>> inPackageSpecifically(String superPackage) {
@@ -122,7 +155,7 @@ public class JarLoader {
                         && removeLast(splitAbs(i, "."))
                         .equals(splitAbs(superPackage, ".")))
                 .map(i -> classCache.get(i).get())
-            .filter(Objects::nonNull).map(i -> (Class<?>) i);
+                .filter(Objects::nonNull).map(i -> (Class<?>) i);
     }
 
     private List<String> splitAbs(String s, String find) {
