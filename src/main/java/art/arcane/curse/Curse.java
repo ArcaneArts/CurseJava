@@ -440,6 +440,14 @@ public class Curse {
         }
     }
 
+    public static Stream<CursedComponent> implemented(File jar, Class<?> interfaceOrClass) {
+        try {
+            return new JarLoader(jar).all(interfaceOrClass).map(Curse::on);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     /**
      * Find all classes which implement or could be casted to a specific class/interface only in a specific package
      *
@@ -451,6 +459,14 @@ public class Curse {
     public static Stream<CursedComponent> implementedInPackage(Class<?> sourceJarClass, Class<?> interfaceOrClass, String pkg) {
         try {
             return new JarLoader(sourceJarClass).inPackageNested(pkg, interfaceOrClass).map(Curse::on);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static Stream<CursedComponent> implementedInPackage(File jar, Class<?> interfaceOrClass, String pkg) {
+        try {
+            return new JarLoader(jar).inPackageNested(pkg, interfaceOrClass).map(Curse::on);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
