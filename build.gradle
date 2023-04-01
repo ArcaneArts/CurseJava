@@ -28,6 +28,12 @@ test {
     useJUnitPlatform()
 }
 
+configurations {
+    archives{
+        canBeResolved = true
+    }
+}
+
 artifactory {
     publish {
         contextUrl = 'https://arcanearts.jfrog.io/artifactory'
