@@ -60,7 +60,9 @@ public class JarLoader {
             if (i.isDirectory()) {
                 allFiles(i, (j) -> {
                     String jarPath = Paths.get(i.getPath()).relativize(Paths.get(j.getPath())).toString();
-                    String c = jarPath.replace(".class", "").replaceAll("\\Q" + File.separator + "\\E", ".");
+                    String c = jarPath.replace(".class", "")
+                        .replaceAll("\\Q/\\E", ".")
+                        .replaceAll("\\Q" + File.separator + "\\E", ".");
 
                     classCache.put(c, () -> {
                         try {
@@ -84,7 +86,9 @@ public class JarLoader {
                         continue;
                     }
 
-                    String c = entry.getName().replaceAll("\\Q" + File.separator + "\\E", ".").replace(".class", "");
+                    String c = entry.getName()
+                        .replaceAll("\\Q/\\E", ".")
+                        .replaceAll("\\Q" + File.separator + "\\E", ".").replace(".class", "");
                     classCache.put(c, () -> {
                         try {
                             return Class.forName(c, true, loader);
