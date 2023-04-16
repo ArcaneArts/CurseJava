@@ -22,6 +22,7 @@ dependencies {
     implementation 'org.bitbucket.mstrobel:procyon-core:0.6.0'
     implementation 'org.bitbucket.mstrobel:procyon-compilertools:0.6.0'
     implementation 'org.bitbucket.mstrobel:procyon-reflection:0.6.0'
+    implementation 'fr.inria.gforge.spoon:spoon-core:10.2.0'
 }
 
 test {

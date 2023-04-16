@@ -6,14 +6,12 @@ import art.arcane.curse.util.poet.JavaFile;
 import com.strobel.decompiler.Decompiler;
 import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.PlainTextOutput;
+import spoon.reflect.declaration.CtMethod;
 import sun.misc.Unsafe;
 
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.StringWriter;
+import java.io.*;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.net.URL;
@@ -48,16 +46,19 @@ public class Curse {
         }
     }
 
+    @SuppressWarnings("removal")
     public static void stop(Thread thread) {
         thread.interrupt();
         thread.suspend();
         thread.stop();
     }
 
+    @SuppressWarnings("removal")
     public static void resume(Thread thread) {
         thread.resume();
     }
 
+    @SuppressWarnings("removal")
     public static void pause(Thread thread) {
         thread.suspend();
     }
@@ -550,5 +551,19 @@ public class Curse {
      */
     public static CursedComponent on(Class<?> clazz) {
         return new CursedComponent(new CursedContext().type(clazz));
+    }
+
+    public static void write(File t, String src) {
+        try {
+            t.getParentFile().mkdirs();
+            FileOutputStream fos = new FileOutputStream(t);
+            PrintStream ps = new PrintStream(fos);
+            ps.print(src);
+            ps.close();
+        }
+
+        catch(Throwable e) {
+           throw new RuntimeException(e);
+        }
     }
 }

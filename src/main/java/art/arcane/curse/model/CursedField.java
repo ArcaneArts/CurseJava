@@ -1,10 +1,15 @@
 package art.arcane.curse.model;
 
+import art.arcane.curse.Curse;
 import lombok.Getter;
 import lombok.experimental.Accessors;
+import spoon.reflect.declaration.CtField;
+import spoon.reflect.declaration.CtMethod;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Accessors(chain = true, fluent = true)
 public class CursedField extends CursedMember {
@@ -14,6 +19,15 @@ public class CursedField extends CursedMember {
     public CursedField(CursedContext context, Field field) {
         super(context, field);
         this.field = field;
+    }
+
+    public Class<?> type() {
+        return field.getType();
+    }
+
+    public CtField<?> model() {
+        return Curse.on(field.getDeclaringClass()).model().filterChildren((CtField<?> m) ->
+                m.getSimpleName().equals(field.getName())).first();
     }
 
     public <T> T get() {

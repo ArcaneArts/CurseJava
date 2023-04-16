@@ -4,16 +4,18 @@ import art.arcane.curse.Curse;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import spoon.Launcher;
+import spoon.reflect.CtModel;
+import spoon.reflect.declaration.CtType;
 import sun.misc.Unsafe;
 
+import java.io.File;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Stream;
 
 @Data
@@ -42,6 +44,27 @@ public class CursedComponent {
     public CursedComponent instance(Object instance) {
         context.instance(instance);
         return this;
+    }
+
+    public <A extends Annotation> A annotated(Class<A> annotation) {
+        return context.type().getDeclaredAnnotation(annotation);
+    }
+
+    public Stream<Method> declaredMethods() {
+        return Arrays.stream(context.type().getDeclaredMethods());
+    }
+
+    public Stream<Method> methods() {
+        return getMethods(context.type());
+    }
+
+    public CtType<?> model() {
+        Launcher l = new Launcher();
+        File t = Curse.temp("lchr", UUID.randomUUID() + ".java");
+        String src = Curse.decompile(context.type());
+        Curse.write(t, src);
+        l.addInputResource(t.getAbsolutePath());
+        return l.buildModel().filterChildren((CtType<?> i) -> i.getQualifiedName().equals(context.type().getCanonicalName())).first();
     }
 
     /**
@@ -96,6 +119,7 @@ public class CursedComponent {
         List<Constructor<?>> c = getConstructors(context.type()).filter(i -> i.getParameterCount() == args.length).toList();
 
         for (Constructor<?> i : c) {
+            System.out.println("Found constructor: " + i + " with args " + Arrays.deepToString(args));
             try {
                 return Curse.on(i.newInstance(args));
             } catch (Throwable ignored) {

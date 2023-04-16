@@ -2,6 +2,7 @@ package art.arcane.curse;
 
 import art.arcane.curse.model.CursedField;
 import art.arcane.curse.model.FuzzyMethod;
+import art.arcane.curse.tweakers.TweakerClassGenerator;
 import art.arcane.curse.util.poet.*;
 import com.sun.tools.attach.*;
 import org.junit.jupiter.api.Test;
@@ -15,5 +16,11 @@ import java.security.CodeSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class Tests {
+    public static void main(String[] a) throws Throwable {
+        Adder realAdder = new AdderImpl();
+        Adder adder = TweakerClassGenerator.interfaceDelegate(AdderTweaker.class, Adder.class, realAdder);
 
+        realAdder.add(1,1); // 2
+        adder.add(1,1); // 0
+    }
 }
