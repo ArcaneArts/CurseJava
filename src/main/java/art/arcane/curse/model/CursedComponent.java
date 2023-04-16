@@ -10,6 +10,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -117,7 +118,20 @@ public class CursedComponent {
         return fields().filter(i -> Modifier.isStatic(i.getMember().getModifiers()));
     }
 
-    public Optional<CursedMethod> fuzz(FuzzyMethod invocation) {
+    public boolean hasInstance() {
+        return instance() != null;
+    }
+
+    public Optional<CursedField> fuzzyField(Class<?> type) {
+        return fuzzyField(type, !hasInstance());
+    }
+
+    public Optional<CursedField> fuzzyField(Class<?> type, boolean staticField) {
+        return fields().filter(i -> i.isStatic() == staticField && i.field().getType().equals(type)).findFirst()
+                .or(() -> fields().filter(i -> i.isStatic() == staticField && (i.field().getType().isAssignableFrom(type))).findFirst());
+    }
+
+    public Optional<CursedMethod> fuzzyMethod(FuzzyMethod invocation) {
         return getMethods(type())
                 .filter(i -> invocation.isStaticMethod() == Modifier.isStatic(i.getModifiers()))
                 .filter(i -> invocation.getReturns().equals(i.getReturnType()))
@@ -142,6 +156,15 @@ public class CursedComponent {
                 })
                 .map(i -> new CursedMethod(context(), i))
                 .findFirst();
+    }
+
+    public <T> T getTyped(Class<?> type) {
+        return (T) fuzzyField(type).map(i -> i.get())
+                .or(() -> fuzzyMethod(FuzzyMethod.builder()
+                .parameters(new ArrayList<>())
+                .returns(type)
+                .staticMethod(!hasInstance())
+                .build()).map(i -> i.invoke()));
     }
 
     public <T> T get(String name) {
