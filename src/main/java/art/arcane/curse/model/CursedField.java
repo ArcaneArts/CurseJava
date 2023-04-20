@@ -6,6 +6,7 @@ import lombok.experimental.Accessors;
 import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.stream.Collectors;
@@ -23,6 +24,14 @@ public class CursedField extends CursedMember {
 
     public Class<?> type() {
         return field.getType();
+    }
+
+    public <A extends Annotation> A annotated(Class<A> annotation) {
+        return field.getDeclaredAnnotation(annotation);
+    }
+
+    public boolean isAnnotated(Class<? extends Annotation> a) {
+        return field.isAnnotationPresent(a);
     }
 
     public CtField<?> model() {
