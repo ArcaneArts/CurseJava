@@ -3,10 +3,13 @@ package art.arcane.curse;
 import art.arcane.curse.model.*;
 import art.arcane.curse.util.JarLoader;
 import art.arcane.curse.util.poet.JavaFile;
+import art.arcane.curse.util.poet.MethodSpec;
+import art.arcane.curse.util.poet.ParameterSpec;
+import art.arcane.curse.util.poet.TypeSpec;
 import com.strobel.decompiler.Decompiler;
 import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.PlainTextOutput;
-import spoon.reflect.declaration.CtMethod;
+import spoon.reflect.cu.SourcePosition;
 import sun.misc.Unsafe;
 
 import javax.tools.JavaCompiler;
@@ -14,6 +17,8 @@ import javax.tools.ToolProvider;
 import java.io.*;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.channels.Channels;
@@ -25,7 +30,9 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Curse {
@@ -565,5 +572,151 @@ public class Curse {
         catch(Throwable e) {
            throw new RuntimeException(e);
         }
+    }
+
+    public static String deepStackTrace(StackTraceElement[] e) {
+        return Arrays.stream(e).map(i -> {
+            try {
+                String s = deepStackTraceElement(i);
+                if (s != null) {
+                    return s;
+                }
+                return "No source found for " + i.getClassName() + "#" + i.getMethodName() + " at line " + i.getLineNumber();
+            } catch (Throwable ignored) {
+
+            }
+
+            return "No source found for " + i.getClassName() + "#" + i.getMethodName() + " at line " + i.getLineNumber();
+        }).collect(Collectors.joining("\n\n"));
+    }
+
+    public static String deepStackTraceElement(StackTraceElement e) throws Throwable {
+        AtomicInteger start = new AtomicInteger();
+        return Curse.on(Class.forName(e.getClassName())).methods()
+            .filter(i -> i.method().getName().equals(e.getMethodName()))
+            .filter(i -> {
+                SourcePosition pos = i.getSourcePosition();
+                start.set(pos.getLine());
+                return e.getLineNumber() >= pos.getLine() && e.getLineNumber() <= pos.getEndLine();
+            })
+            .findFirst()
+            .map(i -> {
+                String[] src = i.model().prettyprint().split("\\Q\n\\E");
+                src[e.getLineNumber() - start.get()] = ">>> " + src[e.getLineNumber() - start.get()];
+                return String.join("\n", src);
+            })
+            .orElse(null);
+    }
+
+    /**
+     * Attempts to find the commonalities between two classes and generate a class which contains methods for getting/setting fields & invoking methods
+     * which will work for all of the provided classes in a reflective manner instead of directly calling the class
+     */
+    public static void cursify(Class<?> c) {
+        List<FuzzyField> fields = new ArrayList<>();
+        List<FuzzyMethod> methods = new ArrayList<>();
+        CursedComponent cc = Curse.on(c);
+
+        for(CursedField j : cc.fields().toList()) {
+            System.out.println("F " + j.field().getName());
+            fields.add(FuzzyField.builder()
+                .possibleNames(List.of(j.field().getName()))
+                .staticField(j.isStatic())
+                .type(j.type())
+                .build());
+        }
+
+        for(CursedMethod j : cc.methods().toList()) {
+            methods.add(FuzzyMethod.builder()
+                .possibleNames(List.of(j.method().getName()))
+                .staticMethod(Modifier.isStatic(j.method().getModifiers()))
+                .returns(j.method().getReturnType())
+                .parameters(List.of(j.method().getParameterTypes()))
+                .build());
+        }
+
+        TypeSpec.Builder ts = TypeSpec.classBuilder("Cursed" + c.getSimpleName());
+
+        System.out.println("F " + fields.size() + " M " + methods.size() + " C " + c.getSimpleName());
+
+        for(FuzzyField i : fields) {
+            if(i.isStaticField()) {
+                ts = ts.addMethod(MethodSpec.methodBuilder("get_" + i.getPossibleNames().get(0))
+                    .addModifiers(javax.lang.model.element.Modifier.PUBLIC, javax.lang.model.element.Modifier.STATIC)
+                    .returns(Object.class)
+                        .addParameter(ParameterSpec.builder(Class.class, "c").build())
+                    .addStatement("return Curse.on(c).fuzzyField(FuzzyField.builder().possibleNames(List.of($S)).staticField(true).type($T.class).build()).map(CursedField::get).orElse(null)", i.getPossibleNames().get(0), i.getType())
+                    .build());
+
+                ts = ts.addMethod(MethodSpec.methodBuilder("set_" + i.getPossibleNames().get(0))
+                    .addModifiers(javax.lang.model.element.Modifier.PUBLIC, javax.lang.model.element.Modifier.STATIC)
+                    .returns(void.class)
+                    .addParameter(ParameterSpec.builder(Class.class, "c").build())
+                    .addParameter(ParameterSpec.builder(Object.class, "i").build())
+                    .addStatement("Curse.on(c).fuzzyField(FuzzyField.builder().possibleNames(List.of($S)).staticField(true).type($T.class).build()).ifPresent(f -> f.set(i))", i.getPossibleNames().get(0), i.getType())
+                    .build());
+            }
+
+            else {
+                ts = ts.addMethod(MethodSpec.methodBuilder("get_" + i.getPossibleNames().get(0))
+                    .addModifiers(javax.lang.model.element.Modifier.PUBLIC, javax.lang.model.element.Modifier.STATIC)
+                    .returns(Object.class)
+                    .addParameter(ParameterSpec.builder(Object.class, "i").build())
+                    .addStatement("return Curse.on(i).fuzzyField(FuzzyField.builder().possibleNames(List.of($S)).staticField(false).type($T.class).build()).map(CursedField::get).orElse(null)", i.getPossibleNames().get(0), i.getType())
+                    .build());
+
+                ts = ts.addMethod(MethodSpec.methodBuilder("set_" + i.getPossibleNames().get(0))
+                    .addModifiers(javax.lang.model.element.Modifier.PUBLIC, javax.lang.model.element.Modifier.STATIC)
+                    .returns(void.class)
+                    .addParameter(ParameterSpec.builder(Object.class, "i").build())
+                    .addParameter(ParameterSpec.builder(Object.class, "v").build())
+                    .addStatement("Curse.on(i).fuzzyField(FuzzyField.builder().possibleNames(List.of($S)).staticField(false).type($T.class).build()).ifPresent(f -> f.set(v))", i.getPossibleNames().get(0), i.getType())
+                    .build());
+            }
+        }
+
+        for(FuzzyMethod i : methods) {
+            String rt = i.getReturns().equals(Void.TYPE) ? "" : "return ";
+            String oon = i.getReturns().equals(Void.TYPE) ? "" : ".orElse(null)";
+
+            if(i.isStaticMethod()) {
+                AtomicInteger pn = new AtomicInteger(0);
+                ts = ts.addMethod(MethodSpec.methodBuilder(i.getPossibleNames().get(0))
+                    .addModifiers(javax.lang.model.element.Modifier.PUBLIC, javax.lang.model.element.Modifier.STATIC)
+                    .returns(i.getReturns().equals(Void.TYPE) ? Void.TYPE : Object.class)
+                    .addParameter(ParameterSpec.builder(Class.class, "c").build())
+                        .addParameters(i.getParameters().stream().map(j -> ParameterSpec.builder(Object.class, "p" + (pn.getAndIncrement())).build())
+                            .collect(Collectors.toList()))
+                        .addStatement(rt + "Curse.on(c).fuzzyMethod(FuzzyMethod.builder().possibleNames(List.of($S)).staticMethod(true).returns($T.class).build()).map(CursedMethod::invoke)"+oon, i.getPossibleNames().get(0), i.getReturns())
+
+
+                    .build());
+            }
+
+            else {
+                AtomicInteger pn = new AtomicInteger(0);
+                ts = ts.addMethod(MethodSpec.methodBuilder(i.getPossibleNames().get(0))
+                    .addModifiers(javax.lang.model.element.Modifier.PUBLIC, javax.lang.model.element.Modifier.STATIC)
+                    .returns(i.getReturns().equals(Void.TYPE) ? Void.TYPE : Object.class)
+                    .addParameter(ParameterSpec.builder(Object.class, "i").build())
+                    .addParameters(i.getParameters().stream().map(j -> ParameterSpec.builder(Object.class, "p" + (pn.getAndIncrement())).build())
+                        .collect(Collectors.toList()))
+                    .addStatement(rt + "Curse.on(i).fuzzyMethod(FuzzyMethod.builder().possibleNames(List.of($S)).staticMethod(false).returns($T.class).build()).map(CursedMethod::invoke)"+oon, i.getPossibleNames().get(0), i.getReturns())
+                    .build());
+            }
+        }
+
+        JavaFile f = JavaFile.builder("art.arcane.curse.gen.cursed", ts.build()).build();
+        List<String> s = new ArrayList<>(Arrays.asList(f.toString().split("\\Q;\\E")));
+        s.add(1, "\nimport art.arcane.curse.model.FuzzyField");
+        s.add(1, "\nimport art.arcane.curse.model.FuzzyMethod");
+        s.add(1, "\nimport art.arcane.curse.model.CursedField");
+        s.add(1, "\nimport art.arcane.curse.model.CursedMethod");
+        s.add(1, "\nimport art.arcane.curse.Curse");
+        s.add(1, "\nimport java.lang.Object");
+        s.add(1, "\nimport java.lang.String");
+        s.add(1, "\nimport java.util.List");
+        String src = String.join(";", s);
+        System.out.println(src);
     }
 }

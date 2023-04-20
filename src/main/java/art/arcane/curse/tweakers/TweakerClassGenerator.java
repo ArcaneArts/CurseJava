@@ -31,24 +31,24 @@ public class TweakerClassGenerator {
                         .addStatement("this.tweaker = tweaker")
                         .build());
         Curse.on(theInterface).declaredMethods()
-                .filter(i -> !java.lang.reflect.Modifier.isStatic(i.getModifiers()))
+                .filter(i -> !java.lang.reflect.Modifier.isStatic(i.method().getModifiers()))
                 .map(i -> {
-                    String rt = i.getReturnType().equals(Void.TYPE) ? "" : "return ";
+                    String rt = i.method().getReturnType().equals(Void.TYPE) ? "" : "return ";
                     String src = "delegate";
 
-                    if(t.optionalMethod(i.getName(), i.getParameterTypes()).map(j -> j.isAnnotated(Inject.class)).orElse(false)) {
+                    if(t.optionalMethod(i.method().getName(), i.method().getParameterTypes()).map(j -> j.isAnnotated(Inject.class)).orElse(false)) {
                         src = "tweaker";
                     }
 
-                    MethodSpec.Builder m = MethodSpec.methodBuilder(i.getName())
+                    MethodSpec.Builder m = MethodSpec.methodBuilder(i.method().getName())
                         .addModifiers(Modifier.PUBLIC)
-                        .addParameters(Arrays.stream(i.getParameters()).map(j -> ParameterSpec.builder(j.getType(), j.getName()).build())
+                        .addParameters(Arrays.stream(i.method().getParameters()).map(j -> ParameterSpec.builder(j.getType(), j.getName()).build())
                             .collect(Collectors.toList()))
-                        .addStatement(rt + src + "." + i.getName() + "(" + Arrays.stream(i.getParameters())
+                        .addStatement(rt + src + "." + i.method().getName() + "(" + Arrays.stream(i.method().getParameters())
                             .map(Parameter::getName).collect(Collectors.joining(", ")) + ")");
 
-                    if(!i.getReturnType().equals(Void.TYPE)) {
-                        m = m.returns(i.getReturnType());
+                    if(!i.method().getReturnType().equals(Void.TYPE)) {
+                        m = m.returns(i.method().getReturnType());
                     }
 
                     return m.build();

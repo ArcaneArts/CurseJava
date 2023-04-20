@@ -6,11 +6,13 @@ import art.arcane.curse.util.poet.TypeSpec;
 import spoon.Launcher;
 import spoon.compiler.SpoonResource;
 import spoon.reflect.CtModel;
+import spoon.reflect.cu.SourcePosition;
 import spoon.reflect.declaration.CtClass;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;
 import spoon.support.reflect.declaration.CtClassImpl;
 
+import java.io.File;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.UUID;
@@ -33,6 +35,10 @@ public class CursedMethod extends CursedExecutable {
                .map(Class::getCanonicalName).collect(Collectors.joining(", ")))).first();
     }
 
+    public SourcePosition getSourcePosition() {
+        return model().getPosition();
+    }
+
     public <T> T invoke(Object... args) {
         try {
             method.setAccessible(true);
@@ -40,5 +46,9 @@ public class CursedMethod extends CursedExecutable {
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public Method method() {
+        return method;
     }
 }

@@ -12,15 +12,12 @@ import javax.lang.model.element.Modifier;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.security.CodeSource;
+import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class Tests {
     public static void main(String[] a) throws Throwable {
-        Adder realAdder = new AdderImpl();
-        Adder adder = TweakerClassGenerator.interfaceDelegate(AdderTweaker.class, Adder.class, realAdder);
 
-        realAdder.add(1,1); // 2
-        adder.add(1,1); // 0
     }
 }

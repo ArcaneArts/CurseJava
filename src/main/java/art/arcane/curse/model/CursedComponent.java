@@ -50,12 +50,12 @@ public class CursedComponent {
         return context.type().getDeclaredAnnotation(annotation);
     }
 
-    public Stream<Method> declaredMethods() {
-        return Arrays.stream(context.type().getDeclaredMethods());
+    public Stream<CursedMethod> declaredMethods() {
+        return Arrays.stream(context.type().getDeclaredMethods()).map(i -> new CursedMethod(context(), i));
     }
 
-    public Stream<Method> methods() {
-        return getMethods(context.type());
+    public Stream<CursedMethod> methods() {
+        return getMethods(context.type()).map(i -> new CursedMethod(context(), i));
     }
 
     public CtType<?> model() {
@@ -86,12 +86,29 @@ public class CursedComponent {
     }
 
     /**
+     * Tries to find a constructor to call otherwise uses forceMake
+     *
+     * @return the new instance wrapped in a cursed component
+     */
+    public CursedComponent make() {
+        try {
+            return construct();
+        }
+
+        catch(Throwable e) {
+
+        }
+
+        return forceMake();
+    }
+
+    /**
      * Create a new instance of this component class WITHOUT CALLING ITS CONSTRUCTOR
      * This is dangerous but sometimes useful, just make sure to define the final fields after initialization...
      *
      * @return the new instance wrapped in a cursed component
      */
-    public CursedComponent make() {
+    public CursedComponent forceMake() {
         try {
             return Curse.on(type()).instance(unsafe().allocateInstance(type()));
         } catch (InstantiationException e) {
@@ -131,7 +148,7 @@ public class CursedComponent {
     }
 
     public Stream<CursedField> fields() {
-        return getFields(getClass()).map(i -> new CursedField(context(), i));
+        return getFields(type()).map(i -> new CursedField(context(), i));
     }
 
     public Stream<CursedField> instanceFields() {
@@ -153,6 +170,14 @@ public class CursedComponent {
     public Optional<CursedField> fuzzyField(Class<?> type, boolean staticField) {
         return fields().filter(i -> i.isStatic() == staticField && i.field().getType().equals(type)).findFirst()
                 .or(() -> fields().filter(i -> i.isStatic() == staticField && (i.field().getType().isAssignableFrom(type))).findFirst());
+    }
+
+    public Optional<CursedField> fuzzyField(FuzzyField invocation) {
+        return fields()
+                .filter(i -> invocation.isStaticField() == i.isStatic())
+                .filter(i -> invocation.getType().equals(i.field().getType()))
+                .filter(i -> (invocation.getPossibleNames() == null || invocation.getPossibleNames().isEmpty()) || invocation.getPossibleNames().contains(i.field().getName()))
+                .findFirst();
     }
 
     public Optional<CursedMethod> fuzzyMethod(FuzzyMethod invocation) {
