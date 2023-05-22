@@ -25,6 +25,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -103,6 +104,10 @@ public class JarLoader {
 
             zip.close();
         }
+    }
+
+    private void attemptTimeout(Supplier<Class<?>> s, long timeout) {
+        
     }
 
 

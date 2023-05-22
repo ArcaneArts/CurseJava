@@ -136,13 +136,12 @@ public class CursedComponent {
         List<Constructor<?>> c = getConstructors(context.type()).filter(i -> i.getParameterCount() == args.length).toList();
 
         for (Constructor<?> i : c) {
-            System.out.println("Found constructor: " + i + " with args " + Arrays.deepToString(args));
             try {
                 return Curse.on(i.newInstance(args));
             } catch (Throwable ignored) {
 
             }
-        }
+        } 
 
         throw new RuntimeException("No constructor found for " + context.type() + " with args (" + Arrays.deepToString(args) + ")");
     }
