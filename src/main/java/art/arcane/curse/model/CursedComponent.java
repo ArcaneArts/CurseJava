@@ -141,7 +141,7 @@ public class CursedComponent {
             } catch (Throwable ignored) {
 
             }
-        } 
+        }
 
         throw new RuntimeException("No constructor found for " + context.type() + " with args (" + Arrays.deepToString(args) + ")");
     }

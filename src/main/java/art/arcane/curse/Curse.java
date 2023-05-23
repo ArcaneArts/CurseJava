@@ -311,7 +311,7 @@ public class Curse {
         Files.writeString(sourceFile.toPath(), sourceCode);
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         compiler.run(null, null, null, sourceFile.getPath());
-        URLClassLoader classLoader = URLClassLoader.newInstance(new URL[]{sourceFolder.toURI().toURL()});
+        URLClassLoader classLoader = URLClassLoader.newInstance(new URL[]{sourceFolder.toURI().toURL()}, Curse.class.getClassLoader());
         return classLoader.loadClass(canonicalName);
     }
 
